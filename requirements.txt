@@ -1,2 +1,2 @@
 python-docx
-simplify_docx==0.1.0
+simplify_docx==0.1.2
