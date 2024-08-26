@@ -41,6 +41,7 @@ def parse_table(table_data):
 def process_json_structure(data):
     result = {}
     stack = [result]
+    previous_level = 0  # 跟踪上一个标题的层级
 
     for item in data['VALUE'][0]['VALUE']:
         if item['TYPE'] == 'paragraph':
@@ -50,13 +51,22 @@ def process_json_structure(data):
                 level = int(text.split('[Title')[-1][0])
                 title = text.split('[Title')[0].strip()
 
-                # 构建嵌套结构
+                # 如果当前标题是n+2级，而没有n+1级标题，自动补充n+1级为null
+                if level > previous_level + 1:
+                    for l in range(previous_level + 1, level):
+                        placeholder = {"content": None}
+                        stack[-1][f"Default_Level_{l}"] = placeholder
+                        stack.append(placeholder)
+
+                # 确保堆栈保持正确的层级
                 while len(stack) > level:
                     stack.pop()
 
-                current_section = {"paragraphs": []}  # 保留自然段落
+                current_section = {"paragraphs": []}
                 stack[-1][title] = current_section
                 stack.append(current_section)
+                previous_level = level
+
             else:
                 # 添加当前自然段落到当前标题下
                 if 'paragraphs' in stack[-1]:
@@ -73,12 +83,13 @@ def process_json_structure(data):
     return result
 
 
+
 def main():
     # 输入和输出路径
-    input_docx_path = "../files/经费管理.docx"
+    input_docx_path = "../files/doctest.docx"
     output_json_path = os.path.join("../output", f"{os.path.splitext(os.path.basename(input_docx_path))[0]}-docx.json")
 
-    # 读取 docx 文件
+    # 读取 docx
     my_doc = docx.Document(input_docx_path)
 
     # 预处理-标记标题
@@ -90,7 +101,6 @@ def main():
     # 二次处理-将 JSON 数据结构化为多级标题并保留自然段落和表格
     processed_json = process_json_structure(my_doc_as_json)
 
-    # 将最终的 JSON 结果保存到文件
     with open(output_json_path, "w", encoding="utf-8") as final_json_file:
         json.dump(processed_json, final_json_file, ensure_ascii=False, indent=4)
 
